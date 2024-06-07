@@ -8,15 +8,33 @@ import (
 	"os"
 )
 
+type Request struct {
+	Name string `json:"name"`
+}
+
 type Response struct {
 	Text string `json:"text"`
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
-	message := "This HTTP triggered function executed successfully"
-	name := r.URL.Query().Get("name")
-	if name != "" {
-		message = fmt.Sprintf("Hello, %s", name)
+	message := "Azure Func triggered..."
+
+	if r.Method == http.MethodGet {
+		message = "HTTP GET triggered function executed successfully"
+	} else if r.Method == http.MethodPost {
+		// Handle POST request
+		var req Request
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			message = "Bad Request"
+		}
+
+		if req.Name != "" {
+			message = fmt.Sprintf("Hello, %s!", req.Name)
+		}
+	} else {
+		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		message = "Unsupported method"
 	}
 
 	response := Response{Text: message}
