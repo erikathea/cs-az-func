@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -54,7 +55,13 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer r.Body.Close()
 
-		message = string(body)
+		decodedBody, err := base64.StdEncoding.DecodeString(string(body))
+		if err != nil {
+			http.Error(w, "Unable to decode base64 body", http.StatusBadRequest)
+			return
+		}
+
+		message = string(decodedBody)
 	} else {
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 		message = "Unsupported method"
