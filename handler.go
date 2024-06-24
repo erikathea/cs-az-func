@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/cloudflare/circl/oprf"
+	"github.com/cloudflare/migp-go/pkg/migp"
 )
 
 type Request struct {
@@ -20,6 +20,13 @@ type Response struct {
 	Text     string `json:"text"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+type MIGPResponse struct {
+	Username string `json:"username"`
+	Password string `json:"password,omitempty"`
+	Status   string `json:"status"`
+	Metadata string `json:"metadata,omitempty"`
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,9 +56,9 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
-	var message, username, password string
-	suite := oprf.SuiteP256
-	client := oprf.NewClient(suite)
+	var username, password string
+	var response MIGPResponse
+
 	if r.Method == http.MethodPost {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -69,23 +76,55 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 		username = string(decodedBody[2 : 2+usernameLength])
 		passwordLength := int(decodedBody[2+usernameLength])<<8 | int(decodedBody[3+usernameLength])
 		password = string(decodedBody[4+usernameLength : 4+usernameLength+passwordLength])
-		message = string(decodedBody)
+		// retrieve the config from the server
+		var cfg migp.Config
+		targetURL := "https://migp.cloudflare.com"
+		resp, err := http.Get(targetURL + "/config")
+		if err != nil {
+			log.Fatal(err)
+			http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
+			return
+		}
+		if resp.StatusCode != http.StatusOK {
+			log.Fatalf("Unable to retrieve MIGP config from target %q: status code %d", targetURL, resp.StatusCode)
+			http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
+			return
+		}
+		decoder := json.NewDecoder(resp.Body)
+		if err := decoder.Decode(&cfg); err != nil {
+			log.Fatal(err)
+		}
 
-		inputs := [][]byte{[]byte(username), []byte(password)}
-		client.Blind(inputs)
+		if status, metadata, err := migp.Query(cfg, targetURL+"/evaluate", []byte(username), []byte(password)); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			response = MIGPResponse{
+				Username: string(username),
+				Password: string(password),
+				Status:   status.String(),
+				Metadata: string(metadata),
+			}
+		}
 	} else {
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
-		message = "Unsupported method"
 		username = "n/a"
 		password = "n/a"
+		response = MIGPResponse{
+			Username: username,
+			Password: password,
+			Status:   "error",
+		}
 	}
 
-	response := Response{Text: message, Username: username, Password: password}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to send response: %v", err)
+	out, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Failed to marshal response: %v", err)
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
 	}
+	w.Write(out)
 }
 
 func main() {
