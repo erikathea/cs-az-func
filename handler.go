@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/cloudflare/circl/oprf"
 )
 
 type Request struct {
@@ -15,7 +17,9 @@ type Request struct {
 }
 
 type Response struct {
-	Text string `json:"text"`
+	Text     string `json:"text"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,8 +49,9 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
-	var message string
-
+	var message, username, password string
+	suite := oprf.SuiteP256
+	client := oprf.NewClient(suite)
 	if r.Method == http.MethodPost {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -60,14 +65,22 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Unable to decode base64 body", http.StatusBadRequest)
 			return
 		}
-
+		usernameLength := int(decodedBody[0])<<8 | int(decodedBody[1])
+		username = string(decodedBody[2 : 2+usernameLength])
+		passwordLength := int(decodedBody[2+usernameLength])<<8 | int(decodedBody[3+usernameLength])
+		password = string(decodedBody[4+usernameLength : 4+usernameLength+passwordLength])
 		message = string(decodedBody)
+
+		inputs := [][]byte{[]byte(username), []byte(password)}
+		client.Blind(inputs)
 	} else {
 		http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 		message = "Unsupported method"
+		username = "n/a"
+		password = "n/a"
 	}
 
-	response := Response{Text: message}
+	response := Response{Text: message, Username: username, Password: password}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
