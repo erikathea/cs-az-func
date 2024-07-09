@@ -76,7 +76,7 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 		username = string(decodedBody[2 : 2+usernameLength])
 		passwordLength := int(decodedBody[2+usernameLength])<<8 | int(decodedBody[3+usernameLength])
 		password = string(decodedBody[4+usernameLength : 4+usernameLength+passwordLength])
-		// retrieve the config from the server
+
 		var cfg migp.Config
 		targetURL := "https://migp.cloudflare.com"
 		resp, err := http.Get(targetURL + "/config")
