@@ -7,6 +7,8 @@ github.com/cloudflare/migp-go v0.0.0-20211216220014-c364ba86b653 h1:R//SwvWVlROL
 github.com/cloudflare/migp-go v0.0.0-20211216220014-c364ba86b653/go.mod h1:o9ytwCfmwncVoUeufjIskbj4rotqBCbBfl6siqDtjdc=
 github.com/erikathea/migp-go v0.0.1 h1:6nYws0DzKwJ0DZ6w8E7TibzlaU58QqvtpDNo35Kqtvk=
 github.com/erikathea/migp-go v0.0.1/go.mod h1:QNWBuCvptl0gcpf3tzoM6lkxzAHCRpH2D8ycwrxsyD0=
+github.com/lib/pq v1.10.9 h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw=
+github.com/lib/pq v1.10.9/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/spaolacci/murmur3 v1.1.0/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/crypto v0.11.1-0.20230711161743-2e82bdd1719d h1:LiA25/KWKuXfIq5pMIBq1s5hz3HQxhJJSu/SUGlD+SM=
