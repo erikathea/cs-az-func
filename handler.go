@@ -132,21 +132,14 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 
 func migpQuery2Handler(w http.ResponseWriter, r *http.Request) {
 	var cfg migp.Config
-	targetURL := "https://migp.cloudflare.com"
-	resp, err := http.Get(targetURL + "/config")
+	configJSON := os.Getenv("CONFIG_JSON")
+	if configJSON == "" {
+		log.Fatal("CONFIG_JSON environment variable not set")
+	}
+
+	err := json.Unmarshal([]byte(configJSON), &cfg)
 	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
-		return
-	}
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Unable to retrieve MIGP config from target %q: status code %d", targetURL, resp.StatusCode)
-		http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
-		return
-	}
-	decoder := json.NewDecoder(resp.Body)
-	if err := decoder.Decode(&cfg); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error parsing CONFIG_JSON: %v", err)
 	}
 	migpHandler(w, r, "https://be-az-func.azurewebsites.net/api/query", cfg)
 }
