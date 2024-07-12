@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/erikathea/migp-go"
+	"github.com/erikathea/migp-go/pkg/migp"
 )
 
 type Request struct {
