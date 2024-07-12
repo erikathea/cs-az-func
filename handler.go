@@ -55,7 +55,7 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
+func migpHandler(w http.ResponseWriter, r *http.Request, targetURL string, cfg migp.Config) {
 	var username, password string
 	var response MIGPResponse
 
@@ -77,25 +77,7 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 		passwordLength := int(decodedBody[2+usernameLength])<<8 | int(decodedBody[3+usernameLength])
 		password = string(decodedBody[4+usernameLength : 4+usernameLength+passwordLength])
 
-		var cfg migp.Config
-		targetURL := "https://migp.cloudflare.com"
-		resp, err := http.Get(targetURL + "/config")
-		if err != nil {
-			log.Fatal(err)
-			http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
-			return
-		}
-		if resp.StatusCode != http.StatusOK {
-			log.Fatalf("Unable to retrieve MIGP config from target %q: status code %d", targetURL, resp.StatusCode)
-			http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
-			return
-		}
-		decoder := json.NewDecoder(resp.Body)
-		if err := decoder.Decode(&cfg); err != nil {
-			log.Fatal(err)
-		}
-
-		if status, metadata, err := migp.Query(cfg, targetURL+"/evaluate", []byte(username), []byte(password)); err != nil {
+		if status, metadata, err := migp.Query(cfg, targetURL, []byte(username), []byte(password)); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
 			response = MIGPResponse{
@@ -127,6 +109,48 @@ func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(out)
 }
 
+func migpQueryHandler(w http.ResponseWriter, r *http.Request) {
+	var cfg migp.Config
+	targetURL := "https://migp.cloudflare.com"
+	resp, err := http.Get(targetURL + "/config")
+	if err != nil {
+		log.Fatal(err)
+		http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("Unable to retrieve MIGP config from target %q: status code %d", targetURL, resp.StatusCode)
+		http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
+		return
+	}
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&cfg); err != nil {
+		log.Fatal(err)
+	}
+	migpHandler(w, r, targetURL+"/evaluate", cfg)
+}
+
+func migpQuery2Handler(w http.ResponseWriter, r *http.Request) {
+	var cfg migp.Config
+	targetURL := "https://migp.cloudflare.com"
+	resp, err := http.Get(targetURL + "/config")
+	if err != nil {
+		log.Fatal(err)
+		http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalf("Unable to retrieve MIGP config from target %q: status code %d", targetURL, resp.StatusCode)
+		http.Error(w, "Unable to retrieve MIGP config from target", http.StatusInternalServerError)
+		return
+	}
+	decoder := json.NewDecoder(resp.Body)
+	if err := decoder.Decode(&cfg); err != nil {
+		log.Fatal(err)
+	}
+	migpHandler(w, r, "https://be-az-func.azurewebsites.net/api/query", cfg)
+}
+
 func main() {
 	listenAddr := ":8080"
 	if val, ok := os.LookupEnv("FUNCTIONS_CUSTOMHANDLER_PORT"); ok {
@@ -134,6 +158,7 @@ func main() {
 	}
 	http.HandleFunc("/api/HttpTrigger1", helloHandler)
 	http.HandleFunc("/api/migpQuery", migpQueryHandler)
+	http.HandleFunc("/api/migpQuery2", migpQuery2Handler)
 	log.Printf("About to listen on %s", listenAddr)
 	log.Fatal(http.ListenAndServe(listenAddr, nil))
 }
